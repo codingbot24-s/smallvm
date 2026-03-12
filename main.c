@@ -8,7 +8,7 @@ uint16_t memory[MEMORY_MAX];
 #define unimplemented() printf("implement me\n");
 
 uint16_t mem_read(uint16_t);
-int read_image(FILE *f);
+int read_image();
 /*
  *  10 lc3 register
  *
@@ -59,9 +59,34 @@ enum
     FL_NEG = 1 << 2, /* N */
 };
 
-int main(int argc, const char* argv[])
+uint16_t sign_extend(uint16_t x, int bit_count)
 {
-    if (argc < 2) 
+    if ((x >> (bit_count - 1)) & 1)
+    {
+        x |= (0xFFFF << bit_count);
+    }
+    return x;
+}
+
+void update_flage(uint16_t r)
+{
+    if (reg[r] == 0)
+    {
+        reg[R_COND] = FL_ZRO;
+    }
+    else if (reg[r] >> 15) /* a 1 in the left-most bit indicates negative */
+    {
+        reg[R_COND] = FL_NEG;
+    }
+    else
+    {
+        reg[R_COND] = FL_POS;
+    }
+}
+
+int main(int argc, const char *argv[])
+{
+    if (argc < 2)
     {
         printf("lc3 [image-file1]...\n");
         exit(2);
@@ -69,17 +94,16 @@ int main(int argc, const char* argv[])
 
     for (int i = 1; i < argc; i++)
     {
-        if (!read_image(argv[i]))
+        if (!read_image())
         {
-            printf("failed to load image:%s\n",argv[i]);
+            printf("failed to load image:%s\n", argv[i]);
             exit(1);
         }
-        
     }
-     
-    
+
     reg[R_COND] = FL_ZRO;
 
+    /* set the PC to starting position */
     enum
     {
         PC_START = 0x3000
@@ -95,7 +119,26 @@ int main(int argc, const char* argv[])
         switch (op)
         {
         case OP_ADD:
-            unimplemented();
+            /* destination register */
+            uint16_t r0 = (instr >> 9) & 0x7;
+            /* first oprend */
+            uint16_t r1 = (instr >> 6) & 0x7;
+            /* whether we are in immediate mode */
+            uint16_t imm_flag = (instr >> 5) & 0x1;
+            /*
+                if bit [5] is 0, the second source operand is obtained from SR2. If bit [5] is 1, the second source operand is obtained by sign-extending the imm5 field to 16 bits.
+            */
+            if (imm_flag)
+            {
+                uint16_t imm5 = sign_extend(instr & 0x1F, 5);
+                reg[r0] = reg[r1] + imm5;
+            }
+            else
+            {
+                uint16_t r2 = instr & 0x7;
+                reg[r0] = reg[r1] + reg[r2];
+            }
+            update_flage(r0);
             break;
         case OP_AND:
             unimplemented();
@@ -143,6 +186,8 @@ uint16_t mem_read(uint16_t address)
     return 0;
 }
 
-int read_image(FILE *f) {
+int read_image()
+{
     unimplemented();
+    return 0;
 }
