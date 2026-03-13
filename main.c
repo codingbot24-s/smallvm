@@ -6,6 +6,8 @@
 uint16_t memory[MEMORY_MAX];
 
 #define unimplemented() printf("implement me\n");
+#define ignored() printf("this instructions are ignored\n");
+
 
 uint16_t mem_read(uint16_t);
 int read_image();
@@ -105,7 +107,7 @@ int main(int argc, const char *argv[])
 
     /* set the PC to starting position */
     enum
-    {
+        {
         PC_START = 0x3000
     };
     reg[R_PC] = PC_START;
@@ -159,6 +161,12 @@ int main(int argc, const char *argv[])
             unimplemented();
             break;
         case OP_LDI:
+            uint16_t ro = (instr >> 9) & 0x7;
+            uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+            
+            reg[r0] = mem_read(mem_read(reg[R_PC] + pc_offset));
+
+            update_flage(r0);
             break;
         case OP_LDR:
             break;
@@ -174,6 +182,7 @@ int main(int argc, const char *argv[])
             break;
         case OP_RES:
         case OP_RTI:
+            ignored();
         default:
             break;
         }
